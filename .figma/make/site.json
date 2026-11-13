@@ -1,0 +1,12 @@
+{
+  "title": "ELT Hub — Cộng đồng & Tài nguyên Giảng dạy Tiếng Anh",
+  "description": "Kho tri thức, giáo án, diễn đàn và công cụ giảng dạy thông minh dành cho giáo viên tiếng Anh Việt Nam.",
+  "language": "vi",
+  "robots": {
+    "index": true
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

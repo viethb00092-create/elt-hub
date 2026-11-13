@@ -1,0 +1,60 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Hàm kiểm tra User đã đăng nhập
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    // Hàm kiểm tra xem email có thuộc danh sách Admin do bạn chỉ định không
+    // Bạn cần thay mảng ["admin@elthub.vn"] bằng các email quản trị thực tế của bạn
+    function isAdmin() {
+      return isAuth() && request.auth.token.email in ["admin@elthub.vn", "your_email@gmail.com"];
+    }
+
+    // 1. Quản lý Hồ sơ người dùng & Dữ liệu đã lưu
+    match /userProfiles/{userId} {
+      allow read, write: if isAuth() && request.auth.uid == userId;
+    }
+
+    // 2. Tài liệu / Giáo án (Trang chủ)
+    match /resources/{docId} {
+      // Mọi người đều đọc được bài viết đã duyệt
+      allow read: if resource == null || resource.data.status == 'approved';
+      // Admin được đọc tất cả (kể cả bài đang chờ duyệt)
+      allow read: if isAdmin();
+      
+      // Ai đã đăng nhập cũng có thể gửi bài mới (trạng thái pending)
+      allow create: if isAuth() && request.resource.data.status == 'pending' && request.resource.data.submittedByUid == request.auth.uid;
+      // Admin được đăng bài trực tiếp, duyệt bài, cập nhật hoặc xóa bài
+      allow create, update, delete: if isAdmin();
+      
+      // Cho phép mọi người cập nhật lượt tải (downloadCount)
+      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['downloadCount']);
+    }
+
+    // 3. Module Kiến thức (Trang Lý thuyết)
+    match /theoryModules/{docId} {
+      allow read: if true;
+      allow write, delete: if isAdmin();
+    }
+
+    // 4. Diễn đàn Thảo luận
+    match /discussions/{docId} {
+      allow read: if true;
+      allow create: if isAuth();
+      // Cho phép mọi người cập nhật bình luận và Upvote
+      allow update: if isAuth() && request.resource.data.diff(resource.data).affectedKeys().hasAny(['comments', 'upvotes', 'upvotedBy']);
+      allow delete: if isAdmin();
+    }
+
+    // 5. Bộ công cụ giảng dạy (Workspace)
+    match /toolDecks/{deckId} {
+      allow read: if true;
+      // Chỉ chủ sở hữu bộ công cụ mới được sửa hoặc xóa
+      allow write, delete: if isAuth() && request.auth.uid == resource.data.ownerUid;
+      allow create: if isAuth() && request.resource.data.ownerUid == request.auth.uid;
+    }
+  }
+}
